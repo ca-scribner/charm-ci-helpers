@@ -1,16 +1,21 @@
-from pathlib import Path
-import yaml
 from juju import Juju
+from bundle import Bundle
 
 
-def load_bundle(bundle_file):
-    return yaml.safe_load(Path(bundle_file).read_text())
-
+def get_newest_charm_revision(charm: str, channel: str):
+    """Returns the newest revision of a charm in a channel"""
+    charm_info = Juju.info(charm)
+    channel_map = charm_info["channel-map"]
+    try:
+        tracked_channel_release = channel_map[channel]
+    except KeyError:
+        raise ValueError(f"No channel {channel} in `juju info {charm} --format yaml`")
+    return tracked_channel_release["revision"]
 
 
 def main(source_bundle_file: str, output_bundle_file: str):
-    bundle = load_bundle(source_bundle_file)
-    applications = bundle['applications']
+    bundle = Bundle(source_bundle_file)
+    applications = bundle.applications
 
     for name, application in applications.items():
         # Skip charms we're not "tracking" a channel for
@@ -18,19 +23,16 @@ def main(source_bundle_file: str, output_bundle_file: str):
             continue
 
         charm_name = application["charm"]
-        charm_info = Juju.info(charm_name)
-        try:
-            tracked_channel_revision = charm_info["channel-map"][application["_tracked_channel"]]["revision"]
-            if application["revision"] != tracked_channel_revision:
-                # If revision is not up to date - update in situ from tracked channel
-                application["revision"] = tracked_channel_revision
-        except Exception as e:
-            print("I should handle some of these")
-            raise e
+        channel = application["_tracked_channel"]
+        revision = application.get("revision", None)
 
-    with open(output_bundle_file, 'w') as fout:
-        yaml.dump(bundle, fout)
+        newest_revision = get_newest_charm_revision(charm_name, channel)
 
+        if revision != newest_revision:
+            # If revision is not up to date - update in situ from tracked channel
+            application["revision"] = newest_revision
+
+    bundle.dump(output_bundle_file)
 
 
 if __name__ == "__main__":
