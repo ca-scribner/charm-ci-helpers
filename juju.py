@@ -1,5 +1,5 @@
 from subprocess import Popen, PIPE
-import yaml
+from ruamel.yaml import YAML
 
 
 class Juju:
@@ -18,7 +18,8 @@ class Juju:
         stdout, stderr = cls.juju("info", charm_name, "--format", "yaml", raise_on_stderr=False)
         failure_message = f"Failed to load valid yaml from `juju info`, got \nSTDERR='{stderr}'\nSTDOUT='{stdout}'"
         try:
-            data_dict = yaml.safe_load(stdout)
+            yaml = YAML(typ='rt')
+            data_dict = yaml.load(stdout)
         except:
             raise ValueError(failure_message)
 

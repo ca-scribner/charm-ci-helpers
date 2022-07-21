@@ -2,7 +2,7 @@ import copy
 from pathlib import Path
 from typing import Optional
 
-import yaml
+from ruamel.yaml import YAML
 
 from deepdiff import DeepDiff
 from juju import Juju
@@ -27,6 +27,7 @@ class Bundle:
     def dump(self, filename: str):
         """Dumps as yaml to a file"""
         with open(filename, 'w') as fout:
+            yaml = YAML(typ='rt')
             yaml.dump(self.to_dict(), fout)
 
     def get_latest_revisions(self):
@@ -54,7 +55,8 @@ class Bundle:
 
     def load_bundle(self):
         """Loads a YAML file as a bundle"""
-        self._data = yaml.safe_load(Path(self._filename).read_text())
+        yaml = YAML(typ='rt')
+        self._data = yaml.load(Path(self._filename).read_text())
 
     def to_dict(self):
         return self._data
@@ -68,10 +70,6 @@ class Bundle:
     @property
     def applications(self):
         return self._data['applications']
-
-
-
-
 
 
 def get_newest_charm_revision(charm: str, channel: str):
